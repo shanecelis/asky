@@ -561,12 +561,35 @@ fn bevy_render(
                     //         cursorify_iter(line, out.state.cursor_pos[0], white),
                     //     );
                     // } else {
-                        text_style::bevy::render_iter(parent, &style, line);
+                        text_style::bevy::render_iter(parent, &style, expand_tabs(line));
                     // }
                 });
             // line_num += 1;
         }
     });
+}
+
+fn expand_tabs(line: impl Iterator<Item = StyledString>) -> impl Iterator<Item = StyledString> {
+    let tabstop = 8;
+    let mut count = 0;
+
+    line.map(move |mut styled| {
+        let mut replacements = Vec::new();
+        for (i, c) in styled.s.char_indices() {
+            if c == '\t' {
+                let spaces = tabstop - count % tabstop;
+                replacements.push((i, spaces));
+                count += spaces;
+            } else {
+                count += 1;
+            }
+        }
+        replacements.reverse();
+        for (i, spaces) in replacements {
+            styled.s.replace_range(i..i+1, &" ".repeat(spaces));
+        }
+        styled
+    })
 }
 
 fn is_abort_key(key: &KeyEvent) -> bool {
