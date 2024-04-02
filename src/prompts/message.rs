@@ -96,11 +96,6 @@ impl Printable for Message<'_> {
         use crate::style::Section::*;
         let draw_time = r.draw_time();
         r.pre_prompt()?;
-        if ! self.wait_for_key {
-            // XXX: This is a little funky. It'd be better to pass done some other way.
-            // r.update_draw_time();
-            // r.update_draw_time();
-        }
         if draw_time == DrawTime::Last {
             style.begin(r, Message)?;
             write!(r, "{}", self.message)?;

@@ -627,27 +627,28 @@ impl Plugin for AskyPlugin {
             })
             .init_resource::<BevyAskySettings>()
             .init_state::<AskyPrompt>()
+
+            .add_systems(Update, (asky_system::<Number<u8>>,
+                                  asky_system::<Number<u16>>,
+                                  asky_system::<Number<u32>>,
+                                  asky_system::<Number<u64>>,
+                                  asky_system::<Number<u128>>,
+                                  asky_system::<Number<i8>>,
+                                  asky_system::<Number<i16>>,
+                                  asky_system::<Number<i32>>,
+                                  asky_system::<Number<i64>>,
+                                  asky_system::<Number<i128>>,
+                                  asky_system::<Number<f32>>,
+                                  asky_system::<Number<f64>>))
             .add_systems(Update, (asky_system::<Confirm>,
-            // asky_system::<Toggle>,
-            asky_system::<crate::Text>,
-            asky_system::<Number<u8>>,
-            asky_system::<Number<u16>>,
-            asky_system::<Number<u32>>,
-            asky_system::<Number<u64>>,
-            asky_system::<Number<u128>>,
-            asky_system::<Number<i8>>,
-            asky_system::<Number<i16>>,
-            asky_system::<Number<i32>>,
-            asky_system::<Number<i64>>,
-            asky_system::<Number<i128>>,
-            asky_system::<Number<f32>>,
-            asky_system::<Number<f64>>,
-            asky_system::<Select<'_, Cow<'static, str>>>,
-            asky_system::<Select<'_, &'static str>>,
-            asky_system::<Password>,
-            asky_system::<Message>,
-            asky_system::<MultiSelect<'static, &'static str>>,
-            asky_system::<MultiSelect<'_, Cow<'static, str>>>).chain())
+                                  asky_system::<Toggle>,
+                                  asky_system::<crate::Text>,
+                                  asky_system::<Select<'_, Cow<'static, str>>>,
+                                  asky_system::<Select<'_, &'static str>>,
+                                  asky_system::<Password>,
+                                  asky_system::<Message>,
+                                  asky_system::<MultiSelect<'static, &'static str>>,
+                                  asky_system::<MultiSelect<'_, Cow<'static, str>>>).chain())
             .add_systems(PostUpdate, poll_tasks::<()>)
             .add_systems(PostUpdate, poll_tasks_err::<()>)
             .add_systems(PostUpdate, check_prompt_state)
