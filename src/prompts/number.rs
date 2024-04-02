@@ -1,6 +1,8 @@
 use crate::Error;
 
 use super::text::LineInput;
+
+use crate::Tick;
 use crate::Valuable;
 use std::borrow::Cow;
 
@@ -75,6 +77,8 @@ impl<T: NumLike + Send> Valuable for Number<'_, T> {
         }
     }
 }
+
+impl<T: NumLike> Tick for Number<'_, T> { }
 
 impl<'a, T: NumLike + 'a> Number<'a, T> {
     /// Create a new number prompt.

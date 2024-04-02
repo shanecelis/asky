@@ -1,11 +1,12 @@
 use crate::utils::renderer::{Printable, Renderer};
 
+use crate::{Tick, OnTick};
 use crate::Typeable;
 use crate::{DrawTime, NumLike};
 use crate::style;
 use bevy::{
     ecs::{
-        component::Tick,
+        component,
         system::{SystemMeta, SystemParam},
         world::unsafe_world_cell::UnsafeWorldCell,
     },
@@ -262,7 +263,7 @@ unsafe impl SystemParam for Asky {
         state: &'s mut Self::State,
         _system_meta: &SystemMeta,
         _world: UnsafeWorldCell<'w>,
-        _change_tick: Tick,
+        _change_tick: component::Tick,
     ) -> Self::Item<'w, 's> {
         Asky::new(state.clone())
     }
@@ -411,7 +412,7 @@ pub fn asky_system<T>(
     mut renderer: Local<StyledStringWriter>,
     mut query: Query<(Entity, &mut AskyNode<T>, &mut AskyState, Option<&Children>, Option<&AskyStyle>)>,
 ) where
-    T: Printable + Typeable<KeyEvent> + Valuable + Send + Sync + 'static,
+    T: Printable + Typeable<KeyEvent> + Valuable + Tick + Send + Sync + 'static,
 {
     let key_event = KeyEvent::new(char_evr, key_evr);
     for (entity, mut node, mut state, children, style_maybe) in query.iter_mut() {
@@ -428,38 +429,43 @@ pub fn asky_system<T>(
                 }
             }
             AskyState::Waiting => {
+                let on_tick = node.tick();
                 if !is_abort_key(&key_event)
                     && !node.will_handle_key(&key_event)
                     && renderer.state.draw_time != DrawTime::First
+                    && matches!(on_tick, OnTick::Continue)
                 {
                     continue;
                 }
-                // For the terminal it had an abort key handling happen here.
-                if is_abort_key(&key_event) {
-                    *state = AskyState::Complete;
+                // Make sure we always render it once before dealing with aborting.
+                if renderer.state.draw_time != DrawTime::First {
+                    // For the terminal it had an abort key handling happen here.
+                    if is_abort_key(&key_event) || matches!(on_tick, OnTick::Abort) {
+                        *state = AskyState::Complete;
 
-                    let waiting_maybe = node.promise.take();//std::mem::replace(&mut state, AskyState::Complete);
-                    if let Some(promise) = waiting_maybe {
-                        promise.reject(Error::Cancel);
-                    }
-                    renderer.state.draw_time = DrawTime::Last;
-                } else if node.handle_key(&key_event) {
-                    // It's done.
-                    *state = AskyState::Complete;
-                    let waiting_maybe = node.promise.take();//std::mem::replace(&mut state, AskyState::Complete);
-                    // let waiting_maybe = std::mem::replace(&mut state, AskyState::Complete);
-                    if let Some(promise) = waiting_maybe {
-                        match node.prompt.value() {
-                            Ok(v) => promise.resolve(v),
-                            Err(e) => promise.reject(e),
+                        let waiting_maybe = node.promise.take();//std::mem::replace(&mut state, AskyState::Complete);
+                        if let Some(promise) = waiting_maybe {
+                            promise.reject(Error::Cancel);
                         }
+                        renderer.state.draw_time = DrawTime::Last;
+                    } else if node.handle_key(&key_event) || matches!(on_tick, OnTick::Finish) {
+                        // It's done.
+                        *state = AskyState::Complete;
+                        let waiting_maybe = node.promise.take();//std::mem::replace(&mut state, AskyState::Complete);
+                        // let waiting_maybe = std::mem::replace(&mut state, AskyState::Complete);
+                        if let Some(promise) = waiting_maybe {
+                            match node.prompt.value() {
+                                Ok(v) => promise.resolve(v),
+                                Err(e) => promise.reject(e),
+                            }
+                        }
+                        renderer.state.draw_time = DrawTime::Last;
                     }
-                    renderer.state.draw_time = DrawTime::Last;
-                }
-                if let Some(children) = children {
-                    commands.entity(entity).remove_children(children);
-                    for child in children {
-                        commands.entity(*child).despawn_recursive();
+                    if let Some(children) = children {
+                        commands.entity(entity).remove_children(children);
+                        for child in children {
+                            commands.entity(*child).despawn_recursive();
+                        }
                     }
                 }
                 // let mut renderer =

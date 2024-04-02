@@ -1,6 +1,7 @@
 use crate::Error;
 use std::borrow::Cow;
 
+use crate::Tick;
 use crate::style::Style;
 use crate::utils::renderer::{DrawTime, Printable, Renderer};
 use crate::{Valuable, SetValue};
@@ -127,6 +128,8 @@ impl SetValue for Text<'_> {
         Ok(())
     }
 }
+
+impl Tick for Text<'_> { }
 
 impl<'a> Text<'a> {
     /// Create a new text prompt.

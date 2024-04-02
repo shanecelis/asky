@@ -2,6 +2,7 @@ use std::borrow::Cow;
 
 use crate::Error;
 use crate::Valuable;
+use crate::Tick;
 
 use crate::style::Style;
 use crate::utils::renderer::{DrawTime, Printable, Renderer};
@@ -58,6 +59,8 @@ impl Valuable for Password<'_> {
         Ok(self.input.value.to_string())
     }
 }
+
+impl Tick for Password<'_> { }
 
 impl<'a> Password<'a> {
     /// Create a new password prompt.

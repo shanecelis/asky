@@ -1,6 +1,7 @@
 use std::io;
 
 use crate::Valuable;
+use crate::Tick;
 use std::borrow::Cow;
 
 #[cfg(feature = "terminal")]
@@ -191,6 +192,8 @@ impl<T> Valuable for MultiSelect<'_, T> {
         Ok(answer)
     }
 }
+
+impl<T> Tick for MultiSelect<'_, T> { }
 
 impl<T> Printable for MultiSelect<'_, T> {
     fn draw_with_style<R: Renderer>(&self, r: &mut R, style: &dyn Style) -> io::Result<()> {

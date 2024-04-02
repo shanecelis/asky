@@ -1,6 +1,7 @@
 use std::io;
 use std::borrow::Cow;
 
+use crate::Tick;
 use crate::utils::renderer::{DrawTime, Printable, Renderer};
 use crate::Error;
 use crate::Valuable;
@@ -72,6 +73,9 @@ impl Valuable for Confirm<'_> {
         Ok(self.active)
     }
 }
+
+
+impl Tick for Confirm<'_> { }
 
 impl Printable for Confirm<'_> {
     fn draw_with_style<R: Renderer>(&self, r: &mut R, style: &dyn Style) -> io::Result<()> {

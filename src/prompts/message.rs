@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::io;
 
+use crate::{Tick, OnTick};
 use crate::style::Style;
 #[cfg(feature = "terminal")]
 use crate::utils::key_listener::listen;
@@ -37,6 +38,16 @@ pub struct Message<'a> {
     pub message: Cow<'a, str>,
     pub action: Option<Cow<'a, str>>,
     pub wait_for_key: bool,
+}
+
+impl Tick for Message<'_> {
+    fn tick(&mut self) -> OnTick {
+        if self.wait_for_key {
+            OnTick::Continue
+        } else {
+            OnTick::Finish
+        }
+    }
 }
 
 impl Valuable for Message<'_> {

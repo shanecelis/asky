@@ -116,6 +116,19 @@ pub trait SetValue {
     fn set_value(&mut self, value: Self::Output) -> Result<(), Error>;
 }
 
+pub enum OnTick {
+    Continue,
+    Finish,
+    Abort
+}
+
+pub trait Tick {
+    fn tick(&mut self) -> OnTick {
+        OnTick::Continue
+    }
+}
+
+
 #[derive(Debug)]
 pub enum Error {
     Cancel,

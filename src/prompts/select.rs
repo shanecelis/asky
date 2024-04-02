@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 use std::io;
 
+use crate::Tick;
 use crate::utils::renderer::{DrawTime, Printable, Renderer};
-
 use crate::{Error, Valuable};
 
 pub enum Direction {
@@ -288,6 +288,8 @@ impl<T> Valuable for Select<'_, T> {
         }
     }
 }
+
+impl<T> Tick for Select<'_, T> { }
 
 impl<T> Printable for Select<'_, T> {
     fn draw_with_style<R: Renderer>(&self, r: &mut R, style: &dyn Style) -> io::Result<()> {
