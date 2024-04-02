@@ -34,7 +34,7 @@ pub fn listen(
 
     // `submit` is almost always initialized to false except for Message
     // sometimes.
-    let mut submit = renderer.draw_time() == crate::DrawTime::Last;
+    let mut submit: bool = renderer.draw_time() == crate::DrawTime::Last;
     renderer.update_draw_time();
 
 

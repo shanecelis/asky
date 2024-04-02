@@ -42,7 +42,7 @@ pub struct AskyNode<T: Typeable<KeyEvent> + Valuable> {
 #[derive(Component, Debug)]
 struct AskyDelay(Timer, Option<Producer<(), Error>>);
 
-#[derive(Debug, Default, Component)]
+#[derive(Debug, Default, Component, Reflect)]
 pub enum AskyState {
     #[default]
     Waiting,
@@ -50,7 +50,7 @@ pub enum AskyState {
     Hidden,
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, States)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, States, Reflect)]
 pub enum AskyPrompt {
     #[default]
     Inactive,
@@ -608,6 +608,11 @@ pub struct AskyPlugin;
 
 impl Plugin for AskyPlugin {
     fn build(&self, app: &mut App) {
+        if let Some(type_registry) = app.world.get_resource_mut::<AppTypeRegistry>() {
+            let mut type_registry = type_registry.write();
+            type_registry.register::<AskyState>();
+            type_registry.register::<AskyPrompt>();
+        }
         app
             .insert_resource(AskyParamConfig {
                 state: Arc::new(Mutex::new(AskyParamState {
