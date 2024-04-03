@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::io;
 
+use crate::Tick;
 use crate::Error;
 use crate::Valuable;
 
@@ -47,6 +48,8 @@ impl Valuable for Toggle<'_> {
         Ok(self.active)
     }
 }
+
+impl Tick for Toggle<'_> { }
 
 impl<'a> Toggle<'a> {
     /// Create a new toggle prompt.
