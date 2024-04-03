@@ -401,16 +401,11 @@ impl KeyEvent {
     }
 }
 
-#[derive(Resource, Debug, Default)]
-pub struct BevyAskySettings {
-    pub style: TextStyle,
-}
-
 pub fn asky_system<T>(
     mut commands: Commands,
     char_evr: EventReader<ReceivedCharacter>,
     key_evr: EventReader<KeyboardInput>,
-    asky_settings: Res<BevyAskySettings>,
+    global_asky_style: Option<Res<AskyStyle>>,
     mut renderer: Local<StyledStringWriter>,
     mut query: Query<(Entity, &mut AskyNode<T>, &mut AskyState, Option<&Children>, Option<&AskyStyle>)>,
 ) where
@@ -470,9 +465,6 @@ pub fn asky_system<T>(
                         }
                     }
                 }
-                // let mut renderer =
-                //     BevyRenderer::new(&asky_settings, &mut render_state, &mut commands, entity);
-                // let draw_time = renderer.draw_time();
                 renderer.cursor_pos = None;
                 renderer.cursor_pos_save = None;
                 let mut text_style = None;
@@ -482,7 +474,15 @@ pub fn asky_system<T>(
                         let _ = node.draw_with_style(&mut *renderer, &*style.style);
                     }
                     None => {
-                        let _ = node.draw(&mut *renderer);
+                        match global_asky_style {
+                            Some(ref style) => {
+                                text_style = style.text_style.as_ref();
+                                let _ = node.draw_with_style(&mut *renderer, &*style.style);
+                            }
+                            None => {
+                                let _ = node.draw(&mut *renderer);
+                            }
+                        }
                     }
                 }
                 bevy_render(&mut commands, text_style, &mut renderer, entity);
@@ -614,7 +614,7 @@ fn is_abort_key(key: &KeyEvent) -> bool {
     false
 }
 
-#[derive(Component)]
+#[derive(Component, Resource)]
 pub struct AskyStyle {
     style: Box<dyn style::Style + 'static + Send + Sync>,
     pub text_style: Option<TextStyle>
@@ -649,7 +649,6 @@ impl Plugin for AskyPlugin {
                     closures: Vec::new(),
                 })),
             })
-            .init_resource::<BevyAskySettings>()
             .init_state::<AskyPrompt>()
 
             .add_systems(Update, (asky_system::<Number<u8>>,
