@@ -23,6 +23,7 @@ use std::sync::{Arc, Mutex};
 
 use bevy::prelude::*;
 use std::future::Future;
+use std::fmt::Debug;
 use futures_lite::future;
 
 use std::ops::{Deref, DerefMut};
@@ -315,10 +316,10 @@ pub fn poll_tasks<T: Send + Sync + 'static>(
     }
 }
 
-pub fn poll_tasks_err<T: Send + Sync + 'static>(
+pub fn poll_tasks_err<T: Send + Sync + 'static, E: Debug + Send + Sync + 'static>(
     mut commands: Commands,
     _asky: Asky,
-    mut tasks: Query<(Entity, &mut TaskSink<Result<T, Error>>)>,
+    mut tasks: Query<(Entity, &mut TaskSink<Result<T, E>>)>,
 ) {
     for (entity, mut task) in &mut tasks {
         if let Some(result) = block_on(future::poll_once(&mut task.0)) {
@@ -650,7 +651,7 @@ impl Plugin for AskyPlugin {
                                   asky_system::<MultiSelect<'static, &'static str>>,
                                   asky_system::<MultiSelect<'_, Cow<'static, str>>>).chain())
             .add_systems(PostUpdate, poll_tasks::<()>)
-            .add_systems(PostUpdate, poll_tasks_err::<()>)
+            .add_systems(PostUpdate, poll_tasks_err::<(), Error>)
             .add_systems(PostUpdate, check_prompt_state)
             .add_systems(PostUpdate, run_closures)
             .add_systems(PostUpdate, run_timers);

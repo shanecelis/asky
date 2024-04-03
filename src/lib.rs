@@ -116,6 +116,7 @@ pub trait SetValue {
     fn set_value(&mut self, value: Self::Output) -> Result<(), Error>;
 }
 
+#[derive(Debug, Clone, Copy)]
 pub enum OnTick {
     Continue,
     Finish,
@@ -129,13 +130,19 @@ pub trait Tick {
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("cancelled")]
     Cancel,
+    #[error("invalid input")]
     InvalidInput,
+    #[error("invalid count, expected {expected} actual {actual}")]
     InvalidCount { expected: usize, actual: usize },
+    #[error("validation fail")]
     ValidationFail,
+    #[error("{0}")]
     Message(Cow<'static, str>),
+    #[error("io error {0}")]
     Io(std::io::Error),
 }
 

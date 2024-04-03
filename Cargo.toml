@@ -23,6 +23,7 @@ promise_out = "1.0.0"
 # text-style = "0.3.0"
 # text-style = { path = "../text-style-rs", default-features = false }
 text-style = { path = "../text-style-rs", features = [ "crossterm", "bevy" ] }
+thiserror = "1.0.58"
 # text-style = { git = "https://github.com/shanecelis/text_style.git", branch="feature/colored", default-features = false }
 
 [features]
