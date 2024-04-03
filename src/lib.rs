@@ -143,13 +143,7 @@ pub enum Error {
     #[error("{0}")]
     Message(Cow<'static, str>),
     #[error("io error {0}")]
-    Io(std::io::Error),
-}
-
-impl From<std::io::Error> for Error {
-    fn from(x: std::io::Error) -> Self {
-        Error::Io(x)
-    }
+    Io(#[from] std::io::Error),
 }
 
 pub trait Promptable {

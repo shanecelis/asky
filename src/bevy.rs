@@ -127,13 +127,12 @@ impl Asky {
         waiter
     }
 
-    pub fn prompt_styled<T: Typeable<KeyEvent> + Valuable + Send + Sync + 'static, S>(
+    pub fn prompt_styled<T: Typeable<KeyEvent> + Valuable + Send + Sync + 'static>(
         &mut self,
         prompt: T,
         dest: Entity,
-        style: S
-    ) -> Consumer<T::Output, Error>
-    where S: style::Style + Send + Sync + 'static{
+        style: AskyStyle
+    ) -> Consumer<T::Output, Error> {
         let (promise, waiter) = Producer::<T::Output, Error>::new();
         self.config.state.lock().unwrap().closures.push((
             Box::new(
@@ -149,8 +148,10 @@ impl Asky {
                         ..default()
                     };
                     let id = commands
-                              .spawn((node, AskyNode { prompt, promise: Some(promise) },  AskyState::Waiting,
-                              AskyStyle(Box::new(style))))
+                              .spawn((node,
+                                      AskyNode { prompt, promise: Some(promise) },
+                                      AskyState::Waiting,
+                                      style))
                               .id();
                     commands.entity(parent).push_children(&[id]);
                     }).ok_or(Error::Message("No entity for prompt_styled".into()))
@@ -474,15 +475,17 @@ pub fn asky_system<T>(
                 // let draw_time = renderer.draw_time();
                 renderer.cursor_pos = None;
                 renderer.cursor_pos_save = None;
+                let mut text_style = None;
                 match style_maybe {
                     Some(style) => {
-                        let _ = node.draw_with_style(&mut *renderer, &*style.0);
+                        text_style = style.text_style.as_ref();
+                        let _ = node.draw_with_style(&mut *renderer, &*style.style);
                     }
                     None => {
                         let _ = node.draw(&mut *renderer);
                     }
                 }
-                bevy_render(&mut commands, &asky_settings, &mut renderer, entity);
+                bevy_render(&mut commands, text_style, &mut renderer, entity);
                 // This is just to affirm that we're not recreating the nodes unless we need to.
                 let draw_time = renderer.draw_time();
                 eprint!(".");
@@ -507,7 +510,7 @@ pub fn asky_system<T>(
 
 fn bevy_render(
     commands: &mut Commands,
-    settings: &BevyAskySettings,
+    text_style: Option<&TextStyle>,
     out: &mut StyledStringWriter,
     column: Entity,
 ) {
@@ -551,7 +554,10 @@ fn bevy_render(
 
         // let mut line_num = 0;
         for (_key, line) in &lines {
-            let style: TextStyleParams = settings.style.clone().into();
+            let style: TextStyleParams = match text_style {
+                Some(text_style) => text_style.clone().into(),
+                None => TextStyle::default().into()
+            };
             column
                 .spawn(NodeBundle {
                     style: Style {
@@ -609,7 +615,24 @@ fn is_abort_key(key: &KeyEvent) -> bool {
 }
 
 #[derive(Component)]
-pub struct AskyStyle(pub Box<dyn style::Style + 'static + Send + Sync>);
+pub struct AskyStyle {
+    style: Box<dyn style::Style + 'static + Send + Sync>,
+    pub text_style: Option<TextStyle>
+}
+
+impl AskyStyle {
+    pub fn new<S: style::Style + Send + Sync + 'static>(style: S) -> Self {
+        Self {
+            style: Box::new(style),
+            text_style: None
+        }
+    }
+
+    pub fn with_text_style(mut self, text_style: TextStyle) -> Self {
+        self.text_style = Some(text_style);
+        self
+    }
+}
 
 pub struct AskyPlugin;
 
