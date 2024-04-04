@@ -614,6 +614,7 @@ fn is_abort_key(key: &KeyEvent) -> bool {
     false
 }
 
+/// Defines the style locally as a component or globally as a resource.
 #[derive(Component, Resource)]
 pub struct AskyStyle {
     style: Box<dyn style::Style + 'static + Send + Sync>,

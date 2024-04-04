@@ -1,3 +1,4 @@
+#![forbid(missing_docs)]
 //! Good looking prompts for the terminal
 //!
 //! # Available prompts
@@ -106,24 +107,43 @@ mod prompts;
 pub mod utils;
 use std::borrow::Cow;
 
+/// Defines object which has a principle value or error.
+///
+/// NOTE: Does not define the object as having submitted its value for the
+/// purpose of Asky.
 pub trait Valuable {
+    /// Value type
     type Output: Send;
+    /// Return value or error.
     fn value(&self) -> Result<Self::Output, Error>;
 }
 
+/// Set a value.
 pub trait SetValue {
+    /// Value type
     type Output: Send;
+    /// Set a value or error.
     fn set_value(&mut self, value: Self::Output) -> Result<(), Error>;
 }
 
+/// What to do on each tick.
+///
+/// # Motivation
+///
+/// This allows Asky nodes to abort or finish without dependence on input.
 #[derive(Debug, Clone, Copy)]
 pub enum OnTick {
+    /// Continue
     Continue,
+    /// Complete
     Finish,
+    /// Abort
     Abort
 }
 
+/// A tick on each frame.
 pub trait Tick {
+    /// What to do on each frame. By default it will return [OnTick::Continue].
     fn tick(&mut self) -> OnTick {
         OnTick::Continue
     }
