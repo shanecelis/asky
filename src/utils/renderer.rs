@@ -1,16 +1,21 @@
+//! Renderer
 use crate::style::{DefaultStyle, Style, WithFormat, WithStyle};
 use std::io;
 use text_style::Color;
 
+/// Print object
 pub trait Printable {
+    /// Draw this object with the given style.
     fn draw_with_style<R: Renderer>(&self, renderer: &mut R, style: &dyn Style)
         -> io::Result<()>;
 
+    /// Draw this object with the [DefaultStyle].
     fn draw<R: Renderer>(&self, renderer: &mut R) -> io::Result<()> {
         let style = DefaultStyle::default();
         self.draw_with_style(renderer, &style)
     }
 
+    /// [WithStyle] will use given style when called with [Printable::draw].
     fn style<S: Style>(self, style: S) -> WithStyle<Self, S>
     where
         Self: Sized,
@@ -18,6 +23,7 @@ pub trait Printable {
         WithStyle(self, style)
     }
 
+    /// [WithFormat] will use given format when called with [Printable::draw].
     fn format<F: Fn(&Self, &mut dyn Renderer) -> io::Result<()>>(
         self,
         format: F,
@@ -70,38 +76,48 @@ pub enum DrawTime {
     Last,
 }
 
+/// Renderer
 pub trait Renderer: io::Write {
+    /// Return newlines that have been written.
     fn newline_count(&mut self) -> &mut u16;
+    /// Return the [DrawTime] state.
     fn draw_time(&self) -> DrawTime;
+    /// Goto the next [DrawTime].
     fn update_draw_time(&mut self);
+    /// Set the foreground color.
     fn set_foreground(&mut self, color: Color) -> io::Result<()>;
+    /// Set the background color.
     fn set_background(&mut self, color: Color) -> io::Result<()>;
+    /// Reset the color states.
     fn reset_color(&mut self) -> io::Result<()>;
+    /// Run before drawing prompt.
     fn pre_prompt(&mut self) -> io::Result<()>;
+    /// Run after drawing prompt.
     fn post_prompt(&mut self) -> io::Result<()>;
-
-    // fn print2<F>(&mut self, draw_prompt: F) -> io::Result<()>
-    // where
-    //     F: FnOnce(&mut Self::Writer) -> io::Result<u16>;
-    // fn print_prompt<F>(&mut self, draw_prompt: F) -> io::Result<()>
-    // where
-    //     F: FnOnce(&mut Self) -> io::Result<u16>;
-    // fn print(&mut self, text: ColoredStrings) -> io::Result<()>;
+    /// Move the cursor relative to current position.
     fn move_cursor(&mut self, directions: [usize; 2]) -> io::Result<()>;
-    // fn move_cursor(&mut self, direction: [usize; 2]) -> io::Result<()> { Ok(()) }
+    /// Save the current cursor position.
     fn save_cursor(&mut self) -> io::Result<()>;
+    /// Restore the cursor position with last save.
     fn restore_cursor(&mut self) -> io::Result<()>;
+    /// Hide the cursor.
     fn hide_cursor(&mut self) -> io::Result<()>;
+    /// Show the cursor.
     fn show_cursor(&mut self) -> io::Result<()>;
 }
 
+/// Simple StringRenderer mainly used for testing.
 #[derive(Clone, Default)]
 pub struct StringRenderer {
+    /// Content
     pub string: String,
+    /// [DrawTime]
     pub draw_time: DrawTime,
+    /// Number of lines
     pub line_count: u16,
 }
 
+/// Tally the number of newlines present in the string.
 pub(crate) fn count_newlines(input: &str) -> u16 {
     input.chars().filter(|&c| c == '\n').count() as u16
 }

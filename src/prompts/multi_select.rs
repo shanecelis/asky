@@ -135,6 +135,7 @@ impl<'a, T: 'a> MultiSelect<'a, T> {
         self
     }
 
+    /// Return current value for selection.
     pub fn get_value(&mut self) -> Vec<T> {
         let (selected, _): (Vec<_>, Vec<_>) = self.options.drain(..).partition(|x| x.active);
         selected.into_iter().map(|x| x.value).collect()

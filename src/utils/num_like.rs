@@ -1,3 +1,4 @@
+//! Number like trait
 use std::{fmt::Display, str::FromStr};
 
 /// A utility trait to allow only numbers in [`Number`] prompt.

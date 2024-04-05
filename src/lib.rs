@@ -126,6 +126,7 @@ pub trait SetValue {
     fn set_value(&mut self, value: Self::Output) -> Result<(), Error>;
 }
 
+
 /// What to do on each tick.
 ///
 /// # Motivation
@@ -150,24 +151,41 @@ pub trait Tick {
 }
 
 
+/// Asky errors
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    /// User cancelled.
     #[error("cancelled")]
     Cancel,
+    /// Input was invalid.
     #[error("invalid input")]
     InvalidInput,
+    /// Invalid count with expected and actual.
     #[error("invalid count, expected {expected} actual {actual}")]
-    InvalidCount { expected: usize, actual: usize },
+    InvalidCount {
+        /// Expected count
+        expected: usize,
+        /// Actual count
+        actual: usize
+    },
+    /// Validation failed.
     #[error("validation fail")]
     ValidationFail,
+    /// Message
     #[error("{0}")]
     Message(Cow<'static, str>),
+    /// There was an [std::io::Error].
     #[error("io error {0}")]
     Io(#[from] std::io::Error),
 }
 
+/// A prompt
+///
+/// TODO: Rename to Prompt
 pub trait Promptable {
+    /// Output type for a successful prompt.
     type Output;
+    /// Prompt the user for input.
     fn prompt(&mut self) -> Result<Self::Output, crate::Error>;
 }
 
@@ -186,6 +204,7 @@ pub use utils::key_listener::Typeable;
 pub use utils::num_like::NumLike;
 pub use utils::renderer::{DrawTime, Printable};
 
+/// Prelude
 pub mod prelude {
     pub use super::{utils::renderer::Printable, Error, Promptable, SelectOption, Valuable};
     pub use super::{Confirm, Message, MultiSelect, Number, Password, Select, Text, Toggle};

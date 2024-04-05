@@ -34,9 +34,12 @@ use crate::{DrawTime, Error, Valuable};
 // #[derive(Debug)]
 pub struct Message<'a> {
     /// Message used to display in the prompt.
-    // pub message: &'a str,
     pub message: Cow<'a, str>,
+    /// Action message, e.g., "Press any key to continue"
     pub action: Option<Cow<'a, str>>,
+    /// If true, wait for a key before moving on.
+    ///
+    /// TODO: Perhaps this should be separated into a getkey function?
     pub wait_for_key: bool,
 }
 
@@ -58,7 +61,7 @@ impl Valuable for Message<'_> {
 }
 
 impl<'a> Message<'a> {
-    /// Create a new message prompt with an call to action, e.g., "Press Any Key".
+    /// Create a new message prompt that waits for next key.
     pub fn wait<T: Into<Cow<'a, str>>>(message: T) -> Self {
         Message {
             message: message.into(),
@@ -67,6 +70,7 @@ impl<'a> Message<'a> {
         }
     }
 
+    /// Create a new message prompt with an call to action, e.g., "Press Any Key".
     pub fn call_to_action<T: Into<Cow<'a, str>>>(message: T, action: T) -> Self {
         Message {
             message: message.into(),
@@ -75,7 +79,7 @@ impl<'a> Message<'a> {
         }
     }
 
-    /// Create a new confirm prompt.
+    /// Create a new message prompt.
     pub fn new<T: Into<Cow<'a, str>>>(message: T) -> Self {
         Message {
             message: message.into(),

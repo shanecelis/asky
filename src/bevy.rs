@@ -1,3 +1,4 @@
+//! Support for bevy
 use crate::utils::renderer::{Printable, Renderer};
 
 use crate::{Tick, OnTick};

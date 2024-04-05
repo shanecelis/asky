@@ -1,3 +1,4 @@
+//! Key listener module
 #[cfg(feature = "terminal")]
 use std::io;
 

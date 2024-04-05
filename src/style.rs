@@ -1,22 +1,29 @@
+//! Style for asky prompts
 use crate::{utils::renderer::Renderer, Typeable, Valuable};
 use bitflags::bitflags;
 use std::io;
 use text_style::AnsiColor::*;
 
 bitflags! {
+    /// [Section::Option] and [Section::OptionExclusive] flags
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub struct Flags: u8 {
+        /// Focused
         const Focused  = 0b00000001;
+        /// Selected
         const Selected = 0b00000010;
+        /// Disabled
         const Disabled = 0b00000100;
     }
 }
 
+/// Section of render, emitted before and after the content of each item.
 #[derive(Clone, Copy, Debug)]
 pub enum Section {
-    Query(bool), // if answered -> Query(true)
-    // Answered,
-    Answer(bool), // if show -> Answer(true)
+    /// If query has been answered, `Query(true)`
+    Query(bool),
+    /// Show answer if `Answer(true)`.
+    Answer(bool),
     DefaultAnswer,
     Message,
     Action,
