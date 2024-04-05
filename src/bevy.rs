@@ -36,27 +36,40 @@ use bevy::window::RequestRedraw;
 use itertools::Itertools;
 use text_style::{bevy::TextStyleParams, AnsiColor, StyledString};
 
+/// The Asky prompt
+///
+/// TODO: Consider renaming to AskyPrompt.
 #[derive(Component, Debug)]
 pub struct AskyNode<T: Typeable<KeyEvent> + Valuable> {
     prompt: T,
     promise: Option<Producer<T::Output, Error>>,
 }
 
+/// A delay
 #[derive(Component, Debug)]
 struct AskyDelay(Timer, Option<Producer<(), Error>>);
 
+/// The local state of an Asky prompt.
+///
+/// TODO: Rename to AskyPromptState?
 #[derive(Debug, Default, Component, Reflect)]
 pub enum AskyState {
     #[default]
+    /// Waiting for input
     Waiting,
+    /// Finished
     Complete,
+    /// Not clear this does anything.
     Hidden,
 }
 
+/// The global State of the asky prompt.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, States, Reflect)]
 pub enum AskyPrompt {
+    /// No propmt is active.
     #[default]
     Inactive,
+    /// A prompt is active.
     Active,
 }
 
@@ -75,28 +88,36 @@ fn run_timers(mut commands: Commands, mut query: Query<(Entity, &mut AskyDelay)>
     }
 }
 
+/// The gateway to asky functionality in bevy.
+///
+/// This is a bevy [SystemParam] so any system can access it.
 #[derive(Clone)]
 pub struct Asky {
     config: AskyParamConfig,
 }
 
+/// Asky's global state.
 #[derive(Resource, Clone)]
 pub struct AskyParamConfig {
     pub(crate) state: Arc<Mutex<AskyParamState>>,
 }
 
+/// The closure type for asky
 type Closure = dyn FnOnce(&mut Commands, Option<Entity>, Option<&Children>)
                           -> Result<(), Error> + 'static + Send + Sync;
 
+/// Consider making a typedef.
 pub struct AskyParamState {
     pub(crate) closures: Vec<(Box<Closure>, Option<Entity>)>,
 }
 
 impl Asky {
+    /// Create a new Asky.
     fn new(config: AskyParamConfig) -> Self {
         Self { config }
     }
 
+    /// Prompt the user with `T`, rendering in element `dest`.
     pub fn prompt<T: Typeable<KeyEvent> + Valuable + Send + Sync + 'static>(
         &mut self,
         prompt: T,
@@ -128,6 +149,7 @@ impl Asky {
         waiter
     }
 
+    /// Prompt the user with `T`, rendering in element `dest` with a given style.
     pub fn prompt_styled<T: Typeable<KeyEvent> + Valuable + Send + Sync + 'static>(
         &mut self,
         prompt: T,
@@ -163,6 +185,7 @@ impl Asky {
         waiter
     }
 
+    /// Clear all entities in `dest`.
     pub fn clear(&mut self, dest: Entity) -> Consumer<(), Error> {
         let (promise, waiter) = Producer::<(), Error>::new();
         self.config.state.lock().unwrap().closures.push((
@@ -187,6 +210,7 @@ impl Asky {
         waiter
     }
 
+    /// Delay for the duration.
     pub fn delay(&mut self, duration: Duration) -> Consumer<(), Error> {
         let (promise, waiter) = Producer::<(), Error>::new();
         self.config.state.lock().unwrap().closures.push((
@@ -272,10 +296,14 @@ unsafe impl SystemParam for Asky {
     }
 }
 
+/// An asky task.
+///
+/// [Asky] is the source of these tasks. This is the sink for those tasks.
 #[derive(Component)]
 pub struct TaskSink<T>(pub Task<T>);
 
 impl<T: Send + 'static> TaskSink<T> {
+    /// Create a new [TaskSink] for the given future.
     pub fn new(future: impl Future<Output = T> + Send + 'static) -> Self {
         let thread_pool = AsyncComputeTaskPool::get();
         let task = thread_pool.spawn(future);
@@ -283,6 +311,7 @@ impl<T: Send + 'static> TaskSink<T> {
     }
 }
 
+/// Given a future, create a [TaskSink] for it.
 pub fn future_sink<T: Send + 'static, F: Future<Output = T> + Send + 'static>(
     In(future): In<F>,
     mut commands: Commands,
@@ -297,6 +326,7 @@ pub fn future_sink<T: Send + 'static, F: Future<Output = T> + Send + 'static>(
 //     commands.spawn(TaskSink::new(future));
 // }
 
+/// Given an optional future, only create a task sink if necessary.
 pub fn option_future_sink<T: Send + 'static, F: Future<Output = T> + Send + 'static>(
     In(future_maybe): In<Option<F>>,
     mut commands: Commands,
@@ -306,6 +336,7 @@ pub fn option_future_sink<T: Send + 'static, F: Future<Output = T> + Send + 'sta
     }
 }
 
+/// Poll the [TaskSink]s.
 pub fn poll_tasks<T: Send + Sync + 'static>(
     mut commands: Commands,
     mut tasks: Query<(Entity, &mut TaskSink<T>)>,
@@ -318,6 +349,7 @@ pub fn poll_tasks<T: Send + Sync + 'static>(
     }
 }
 
+/// Poll [TaskSink] which return `Result<T, E>`.
 pub fn poll_tasks_err<T: Send + Sync + 'static, E: Debug + Send + Sync + 'static>(
     mut commands: Commands,
     _asky: Asky,
@@ -351,12 +383,16 @@ impl<T: Typeable<KeyEvent> + Valuable> DerefMut for AskyNode<T> {
     }
 }
 
+/// Represent the key events by their chars and their key codes.
 pub struct KeyEvent {
+    /// Characters from event
     pub chars: Vec<char>,
+    /// [bevy::prelude::KeyCode] from event
     pub codes: Vec<KeyCode>,
 }
 
 impl KeyEvent {
+    /// Return true if there are no chars or key codes.
     pub fn is_empty(&self) -> bool {
         self.chars.is_empty() && self.codes.is_empty()
     }
@@ -382,6 +418,7 @@ impl<T: Typeable<KeyCode>> Typeable<KeyEvent> for T {
 }
 
 impl KeyEvent {
+    /// Create a [KeyEvent] from event readers.
     pub fn new(
         mut char_evr: EventReader<ReceivedCharacter>,
         mut key_evr: EventReader<KeyboardInput>,
@@ -402,6 +439,7 @@ impl KeyEvent {
     }
 }
 
+/// The principle system, handles a particular type of asky prompt.
 pub fn asky_system<T>(
     mut commands: Commands,
     char_evr: EventReader<ReceivedCharacter>,
@@ -619,10 +657,12 @@ fn is_abort_key(key: &KeyEvent) -> bool {
 #[derive(Component, Resource)]
 pub struct AskyStyle {
     style: Box<dyn style::Style + 'static + Send + Sync>,
+    /// Text style if any
     pub text_style: Option<TextStyle>
 }
 
 impl AskyStyle {
+    /// Create a new [AskyStyle] from a style.
     pub fn new<S: style::Style + Send + Sync + 'static>(style: S) -> Self {
         Self {
             style: Box::new(style),
@@ -630,12 +670,14 @@ impl AskyStyle {
         }
     }
 
+    /// Add [TextStyle] to this [AskyStyle].
     pub fn with_text_style(mut self, text_style: TextStyle) -> Self {
         self.text_style = Some(text_style);
         self
     }
 }
 
+/// The Asky plugin for bevy
 pub struct AskyPlugin;
 
 impl Plugin for AskyPlugin {
