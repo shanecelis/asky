@@ -24,23 +24,37 @@ pub enum Section {
     Query(bool),
     /// Show answer if `Answer(true)`.
     Answer(bool),
+    /// The default answer if any
     DefaultAnswer,
+    /// A message
     Message,
+    /// Call to action for a message
     Action,
-    Toggle(bool), // if selected -> Toggle(true)
+    /// If toggled, `Toggle(true)`
+    Toggle(bool),
+    /// Option (or checkbox) with [Flags]
     Option(Flags),
+    /// Exclusive option (or radiobox) with [Flags]
     OptionExclusive(Flags),
+    /// List
     List,
+    /// If this is the first list item, `ListItem(true)`.
     ListItem(bool), // if first -> ListItem(true)
     // Cursor,
+    /// Placeholder is shown when input is empty.
     Placeholder,
+    /// If valid, `Validator(true)`.
     Validator(bool), // if valid -> Validator(true)
+    /// Input
     Input,
+    /// Page, e.g., Page 0 of 8 is represented by `Page(0, 8)`.
     Page(u8, u8), // Page 0 of 8 -> Page(0, 8)
+    /// A custom section
     #[allow(dead_code)]
     Custom(&'static str),
 }
 
+/// Given a prompt `T` this will use style `S` as its new default style.
 pub struct WithStyle<T, S>(pub(crate) T, pub(crate) S);
 
 #[cfg(feature = "bevy")]
@@ -83,6 +97,7 @@ where
     }
 }
 
+/// Given a prompt `T` this will use format `F` as its new default format.
 pub struct WithFormat<T, F>(pub(crate) T, pub(crate) F);
 
 
@@ -116,11 +131,15 @@ where
 //     }
 // }
 
+/// A style is passed the beginning and end of [Section]s while rendering.
 pub trait Style {
+    /// A style [Section] begins. Prepare, e.g., set foreground color.
     fn begin(&self, renderer: &mut dyn Renderer, section: Section) -> io::Result<()>;
+    /// A style [Section] ends. Finish, e.g., reset colors.
     fn end(&self, renderer: &mut dyn Renderer, section: Section) -> io::Result<()>;
 }
 
+/// No style; do nothing. Useful for testing.
 pub struct NoStyle;
 
 impl Style for NoStyle {
@@ -335,12 +354,16 @@ impl Style for DefaultStyle {
     }
 }
 
+/// Default style
 #[derive(Clone, Copy, Debug)]
 pub struct DefaultStyle {
+    /// Use ascii if true.
     pub ascii: bool,
+    /// Use newlines if true.
     pub newlines: bool,
 }
 
+/// Default style is true for ascii and false for newlines.
 impl Default for DefaultStyle {
     fn default() -> Self {
         Self {
