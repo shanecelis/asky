@@ -4,7 +4,7 @@ use crate::utils::renderer::{Printable, Renderer};
 use crate::{Tick, OnTick};
 use crate::Typeable;
 use crate::{DrawTime, NumLike};
-use crate::style;
+use crate::style::{self, DefaultStyle};
 use bevy::{
     ecs::{
         component,
@@ -43,6 +43,16 @@ use text_style::{bevy::TextStyleParams, AnsiColor, StyledString};
 pub struct AskyNode<T: Typeable<KeyEvent> + Valuable> {
     prompt: T,
     promise: Option<Producer<T::Output, Error>>,
+}
+
+impl<T: Typeable<KeyEvent> + Valuable> AskyNode<T> {
+    /// Create a new AskyNode without a promise.
+    pub fn new(prompt: T) -> Self {
+        AskyNode {
+            prompt,
+            promise: None
+        }
+    }
 }
 
 /// A delay
@@ -674,6 +684,12 @@ impl AskyStyle {
     pub fn with_text_style(mut self, text_style: TextStyle) -> Self {
         self.text_style = Some(text_style);
         self
+    }
+}
+
+impl Default for AskyStyle {
+    fn default() -> Self {
+        AskyStyle::new(DefaultStyle::default())
     }
 }
 

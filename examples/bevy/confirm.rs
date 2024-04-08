@@ -15,7 +15,7 @@ fn main() {
                 resolution: (600., 400.).into(),
                 present_mode: PresentMode::AutoVsync,
                 // Tells wasm to resize the window according to the available canvas
-                fit_canvas_to_parent: true,
+                // fit_canvas_to_parent: true,
                 // Tells wasm not to override default event handling, like F5, Ctrl+R etc.
                 prevent_default_event_handling: false,
                 ..default()
@@ -30,13 +30,11 @@ fn main() {
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let settings = BevyAskySettings {
-        style: TextStyle {
+    let settings = AskyStyle::default().with_text_style(TextStyle {
             font: asset_server.load("fonts/DejaVuSansMono.ttf"),
             font_size: 50.0,
             color: Color::WHITE,
-        },
-    };
+        });
     commands.insert_resource(settings);
     commands.spawn(Camera2dBundle::default());
 
@@ -51,7 +49,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(node.clone()).with_children(|parent| {
         parent
             .spawn(node)
-            .insert(AskyNode(confirm, AskyState::Reading));
+            .insert((AskyNode::new(confirm), AskyState::Waiting));
     });
 }
 
@@ -59,7 +57,7 @@ fn response(
     mut commands: Commands,
     mut query: Query<(Entity, &AskyNode<Confirm<'static>>), Without<Handled>>,
 ) {
-    for (entity, prompt) in query.iter_mut() {
+    for (entity, node) in query.iter_mut() {
         match prompt.1 {
             AskyState::Complete => {
                 let response = match prompt.0.value() {

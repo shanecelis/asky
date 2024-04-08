@@ -53,13 +53,11 @@ fn main() {
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>, kind: &str) {
-    let settings = BevyAskySettings {
-        style: TextStyle {
+    let settings = AskyStyle::default().with_text_style(TextStyle {
             font: asset_server.load("fonts/DejaVuSansMono.ttf"),
             font_size: 50.0,
             color: Color::WHITE,
-        },
-    };
+        });
     commands.insert_resource(settings);
     commands.spawn(Camera2dBundle {
         camera: Camera {
@@ -93,48 +91,48 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, kind: &str) {
         "multi_select" | "multi-select" => {
             commands
                 .spawn(node)
-                .insert(AskyNode(multi_select, AskyState::Reading));
+                .insert((AskyNode::new(multi_select, ) , AskyState::Waiting));
         }
         "select" => {
             commands
                 .spawn(node)
-                .insert(AskyNode(select, AskyState::Reading));
+                .insert((AskyNode::new(select, ) , AskyState::Waiting));
         }
         "confirm" => {
             commands
                 .spawn(node)
-                .insert(AskyNode(confirm, AskyState::Reading));
+                .insert((AskyNode::new(confirm, ) , AskyState::Waiting));
         }
         "toggle" => {
             commands
                 .spawn(node)
-                .insert(AskyNode(toggle, AskyState::Reading));
+                .insert((AskyNode::new(toggle, ) , AskyState::Waiting));
         }
         "text" => {
             commands
                 .spawn(node)
-                .insert(AskyNode(text_input, AskyState::Reading));
+                .insert((AskyNode::new(text_input, ) , AskyState::Waiting));
         }
         "password" => {
             commands
                 .spawn(node)
-                .insert(AskyNode(password, AskyState::Reading));
+                .insert((AskyNode::new(password, ) , AskyState::Waiting));
         }
         "float" => {
             commands
                 .spawn(node)
-                .insert(AskyNode(float, AskyState::Reading));
+                .insert((AskyNode::new(float, ) , AskyState::Waiting));
         }
         "number" => {
             commands
                 .spawn(node)
-                .insert(AskyNode(number, AskyState::Reading));
+                .insert((AskyNode::new(number, ) , AskyState::Waiting));
         }
         "message" => {
             commands
                 .spawn(node)
-                .insert(AskyNode(message, AskyState::Reading));
+                .insert((AskyNode::new(message, ) , AskyState::Waiting));
         }
-        _ => todo!("Unexpected example requested '{kind}'."), // .insert(AskyNode(password, AskyState::Reading))
+        _ => todo!("Unexpected example requested '{kind}'."), // .insert((AskyNode::new(password, ) , AskyState::Waiting))
     }
 }
