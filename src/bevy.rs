@@ -113,8 +113,8 @@ pub struct AskyParamConfig {
 }
 
 /// The closure type for asky
-type Closure = dyn FnOnce(&mut Commands, Option<Entity>, Option<&Children>)
-                          -> Result<(), Error> + 'static + Send + Sync;
+pub type Closure = dyn FnOnce(&mut Commands, Option<Entity>, Option<&Children>)
+                              -> Result<(), Error> + 'static + Send + Sync;
 
 /// Consider making a typedef.
 pub struct AskyParamState {
@@ -127,6 +127,11 @@ impl Asky {
         Self { config }
     }
 
+    /// Run a closure.
+    pub fn run(closure: Closure, entity: Option<Entity>) {
+        self.config.state.lock().unwrap().closures.push((Box::new(closure), entity));
+    }
+
     /// Prompt the user with `T`, rendering in element `dest`.
     pub fn prompt<T: Typeable<KeyEvent> + Valuable + Send + Sync + 'static>(
         &mut self,
@@ -134,12 +139,11 @@ impl Asky {
         dest: Entity,
     ) -> Consumer<T::Output, Error> {
         let (promise, waiter) = Producer::<T::Output, Error>::new();
-        self.config.state.lock().unwrap().closures.push((
-            Box::new(
-                move |commands: &mut Commands,
-                      entity: Option<Entity>,
-                      _children: Option<&Children>| {
-                          entity.map(|parent| {
+        self.run(
+            move |commands: &mut Commands,
+            entity: Option<Entity>,
+            _children: Option<&Children>| {
+                entity.map(|parent| {
                     let node = NodeBundle {
                         style: Style {
                             flex_direction: FlexDirection::Column,
@@ -148,14 +152,13 @@ impl Asky {
                         ..default()
                     };
                     let id = commands
-                              .spawn((node, AskyNode { prompt, promise: Some(promise) },  AskyState::Waiting))
-                              .id();
+                        .spawn((node, AskyNode { prompt, promise: Some(promise) },  AskyState::Waiting))
+                        .id();
                     commands.entity(parent).push_children(&[id]);
-                          }).ok_or(Error::Message("No entity for prompt".into()))
-                },
-            ),
+                }).ok_or(Error::Message("No entity for prompt".into()))
+            },
             Some(dest),
-        ));
+        );
         waiter
     }
 
