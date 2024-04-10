@@ -127,8 +127,12 @@ impl Asky {
         Self { config }
     }
 
-    /// Run a closure.
-    pub fn run(closure: Closure, entity: Option<Entity>) {
+    /// Run a closure soon.
+    pub fn run(&mut self,
+               // closure: impl Closure,
+               closure: impl FnOnce(&mut Commands, Option<Entity>, Option<&Children>)
+                                    -> Result<(), Error> + 'static + Send + Sync,
+               entity: Option<Entity>) {
         self.config.state.lock().unwrap().closures.push((Box::new(closure), entity));
     }
 
