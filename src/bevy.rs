@@ -57,7 +57,7 @@ impl<T: Typeable<KeyEvent> + Valuable> AskyNode<T> {
 
 /// A delay
 #[derive(Component, Debug)]
-struct AskyDelay(Timer, Option<Producer<(), Error>>);
+pub struct AskyDelay(Timer, Option<Producer<(), Error>>);
 
 /// The local state of an Asky prompt.
 ///
