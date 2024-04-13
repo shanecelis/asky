@@ -157,7 +157,7 @@ impl Asky {
         prompt: T,
         dest: Entity,
     ) -> impl Future<Output = Result<T::Output, Error>> {
-        async {
+        async move {
             let (promise, waiter) = Producer::<T::Output, Error>::new();
             let world = world();
             let node = NodeBundle {
@@ -173,6 +173,8 @@ impl Asky {
                                AskyState::Waiting))
                 .await
                 .id();
+
+            world.entity(dest).add_child(id).await;
             waiter.await
         }
     }
@@ -184,7 +186,7 @@ impl Asky {
         dest: Entity,
         style: AskyStyle
     ) -> impl Future<Output = Result<T::Output, Error>> {
-        async {
+        async move {
             let (promise, waiter) = Producer::<T::Output, Error>::new();
             let world = world();
             let node = NodeBundle {
@@ -201,6 +203,7 @@ impl Asky {
                                style))
                 .await
                 .id();
+            world.entity(dest).add_child(id).await;
             waiter.await
         }
     }
