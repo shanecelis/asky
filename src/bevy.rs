@@ -221,31 +221,6 @@ impl Asky {
     }
 }
 
-fn run_closures(
-    config: ResMut<AskyParamConfig>,
-    mut commands: Commands,
-    mut redraw: EventWriter<RequestRedraw>,
-    query: Query<Option<&Children>>,
-) {
-    let mut ran_closure = false;
-    for (closure, id_maybe) in config
-        .state
-        .lock()
-        .expect("Unable to lock mutex")
-        .closures
-        .drain(0..)
-    {
-        let children = id_maybe
-            .and_then(|id| query.get(id).expect("Unable to get children"));
-        // eprintln!("run closure");
-        // TODO: Handle error
-        let _ = closure(&mut commands, id_maybe, children);
-        ran_closure = true;
-    }
-    if ran_closure {
-        redraw.send(RequestRedraw);
-    }
-}
 
 /// Check components to determine whether a AskyPrompt state needs to change.
 fn check_prompt_state(
@@ -738,7 +713,7 @@ impl Plugin for AskyPlugin {
             // .add_systems(PostUpdate, poll_tasks::<()>)
             // .add_systems(PostUpdate, poll_tasks_err::<(), Error>)
             .add_systems(PostUpdate, check_prompt_state)
-            .add_systems(PostUpdate, run_closures)
+            // .add_systems(PostUpdate, run_closures)
             .add_systems(PostUpdate, run_timers);
     }
 }
