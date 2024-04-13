@@ -35,6 +35,7 @@ use bevy::tasks::{block_on, AsyncComputeTaskPool, Task};
 use bevy::window::RequestRedraw;
 use itertools::Itertools;
 use text_style::{bevy::TextStyleParams, AnsiColor, StyledString};
+use bevy_defer::{AsyncCommandsExtension, AsyncExecutor, AsyncPlugin, world, AsyncAccess, access::AsyncQuery};
 
 /// The Asky prompt
 ///
@@ -104,6 +105,7 @@ fn run_timers(mut commands: Commands, mut query: Query<(Entity, &mut AskyDelay)>
 #[derive(Clone)]
 pub struct Asky {
     config: AskyParamConfig,
+    // executor: AsyncExecutor,
 }
 
 /// Asky's global state.
@@ -123,16 +125,29 @@ pub struct AskyParamState {
 
 impl Asky {
     /// Create a new Asky.
-    fn new(config: AskyParamConfig) -> Self {
-        Self { config }
-    }
+    // fn new(config: AskyParamConfig) -> Self {
+    //     Self { config }
+    // }
 
     /// Run a closure soon.
-    pub fn run(&mut self,
+    pub fn run<C>(&mut self,
                // closure: impl Closure,
-               closure: impl FnOnce(&mut Commands, Option<Entity>, Option<&Children>)
-                                    -> Result<(), Error> + 'static + Send + Sync,
-               entity: Option<Entity>) {
+               closure: C,
+               entity: Option<Entity>) where
+    C: FnOnce(&mut Commands, Option<Entity>, Option<&Children>)
+                                    -> Result<(), Error> + 'static + Send + Sync {
+        // use bevy::ecs::system::RunSystemOnce;
+        // let world = world();
+        // world.run(move |world|
+        //           {
+        //           world.run_system_once_with((entity, closure), |In((entity, closure)): In<(Option<Entity>, C)>,
+        //                                      mut commands: Commands, query: Query<Option<&Children>>| -> T {
+        //               let children = entity.and_then(|id| query.get(id).expect("Unable to get children"));
+        //               let result = closure(&mut commands, entity, children);
+        //                                          result.unwrap()
+
+        //           })
+        //           })
         self.config.state.lock().unwrap().closures.push((Box::new(closure), entity));
     }
 
@@ -141,7 +156,7 @@ impl Asky {
         &mut self,
         prompt: T,
         dest: Entity,
-    ) -> Consumer<T::Output, Error> {
+    ) -> impl Future<Output = Result<T::Output, Error>> {
         let (promise, waiter) = Producer::<T::Output, Error>::new();
         self.run(
             move |commands: &mut Commands,
@@ -160,6 +175,7 @@ impl Asky {
                         .id();
                     commands.entity(parent).push_children(&[id]);
                 }).ok_or(Error::Message("No entity for prompt".into()))
+                // waiter.await
             },
             Some(dest),
         );
@@ -203,28 +219,37 @@ impl Asky {
     }
 
     /// Clear all entities in `dest`.
-    pub fn clear(&mut self, dest: Entity) -> Consumer<(), Error> {
-        let (promise, waiter) = Producer::<(), Error>::new();
-        self.config.state.lock().unwrap().closures.push((
-            Box::new(
-                move |commands: &mut Commands,
-                      entity: Option<Entity>,
-                      children_maybe: Option<&Children>| {
-                          entity.map(|parent| {
+    pub fn clear(&mut self, dest: Entity) -> impl Future<Output = Result<(), Error>> {
+        async move {
+            let world = world();
+            // let children = world.query::<Option<&Children>>().get(dest);
+            // world.entity(dest).clear_children().await?;
+            // for child in children.iter() {
+            world.entity(dest).despawn_descendants().await;
+            Ok(())
+            // }
+        }
+        // let (promise, waiter) = Producer::<(), Error>::new();
+        // self.config.state.lock().unwrap().closures.push((
+        //     Box::new(
+        //         move |commands: &mut Commands,
+        //               entity: Option<Entity>,
+        //               children_maybe: Option<&Children>| {
+        //                   entity.map(|parent| {
 
-                    commands.entity(parent).clear_children();
-                    if let Some(children) = children_maybe {
-                        for child in children.iter() {
-                            commands.entity(*child).despawn_recursive();
-                        }
-                    }
-                    promise.resolve(());
-                          }).ok_or(Error::Message("No entity for clear".into()))
-                },
-            ),
-            Some(dest),
-        ));
-        waiter
+        //             commands.entity(parent).clear_children();
+        //             if let Some(children) = children_maybe {
+        //                 for child in children.iter() {
+        //                     commands.entity(*child).despawn_recursive();
+        //                 }
+        //             }
+        //             promise.resolve(());
+        //                   }).ok_or(Error::Message("No entity for clear".into()))
+        //         },
+        //     ),
+        //     Some(dest),
+        // ));
+        // waiter
     }
 
     /// Delay for the duration.
@@ -309,31 +334,45 @@ unsafe impl SystemParam for Asky {
         _world: UnsafeWorldCell<'w>,
         _change_tick: component::Tick,
     ) -> Self::Item<'w, 's> {
-        Asky::new(state.clone())
+        // let exe = world
+        //     .get_non_send_resource_mut::<AsyncExecutor>()
+        //     .expect("No AskyParamConfig setup.")
+        //     .clone();
+        Asky {
+            config: state.clone(),
+            // executor: exe
+        }
+        // Asky::new(state.clone())
     }
 }
 
 /// An asky task.
 ///
 /// [Asky] is the source of these tasks. This is the sink for those tasks.
-#[derive(Component)]
-pub struct TaskSink<T>(pub Task<T>);
+// #[derive(Component)]
+// pub struct TaskSink<T>(pub Task<T>);
 
-impl<T: Send + 'static> TaskSink<T> {
-    /// Create a new [TaskSink] for the given future.
-    pub fn new(future: impl Future<Output = T> + Send + 'static) -> Self {
-        let thread_pool = AsyncComputeTaskPool::get();
-        let task = thread_pool.spawn(future);
-        Self(task)
-    }
-}
+// impl<T: Send + 'static> TaskSink<T> {
+//     /// Create a new [TaskSink] for the given future.
+//     pub fn new(future: impl Future<Output = T> + Send + 'static) -> Self {
+//         let thread_pool = AsyncComputeTaskPool::get();
+//         let task = thread_pool.spawn(future);
+//         Self(task)
+//     }
+// }
 
 /// Given a future, create a [TaskSink] for it.
-pub fn future_sink<T: Send + 'static, F: Future<Output = T> + Send + 'static>(
+pub fn future_sink<T: 'static, F: Future<Output = T> + 'static>(
     In(future): In<F>,
-    mut commands: Commands,
+    exec: NonSend<AsyncExecutor>,
+    // mut commands: Commands,
 ) {
-    commands.spawn(TaskSink::new(future));
+    exec.spawn(future);
+    // commands.spawn_task(move || async {
+    //     future.await;
+    //     Ok(())
+    // });
+    // commands.spawn(TaskSink::new(future));
 }
 
 // pub fn future_result_sink<T: Send + 'static, F: Future<Output = Result<T, Error>> + Send + 'static>(
@@ -344,48 +383,50 @@ pub fn future_sink<T: Send + 'static, F: Future<Output = T> + Send + 'static>(
 // }
 
 /// Given an optional future, only create a task sink if necessary.
-pub fn option_future_sink<T: Send + 'static, F: Future<Output = T> + Send + 'static>(
+pub fn option_future_sink<T: 'static, F: Future<Output = T> + 'static>(
     In(future_maybe): In<Option<F>>,
-    mut commands: Commands,
+    exec: NonSend<AsyncExecutor>,
+    // mut commands: Commands,
 ) {
     if let Some(future) = future_maybe {
-        commands.spawn(TaskSink::new(future));
+        exec.spawn(future);
+        // commands.spawn(TaskSink::new(future));
     }
 }
 
 /// Poll the [TaskSink]s.
-pub fn poll_tasks<T: Send + Sync + 'static>(
-    mut commands: Commands,
-    mut tasks: Query<(Entity, &mut TaskSink<T>)>,
-) {
-    for (entity, mut task) in &mut tasks {
-        if block_on(future::poll_once(&mut task.0)).is_some() {
-            // Once
-            commands.entity(entity).despawn();
-        }
-    }
-}
+// pub fn poll_tasks<T: Send + Sync + 'static>(
+//     mut commands: Commands,
+//     mut tasks: Query<(Entity, &mut TaskSink<T>)>,
+// ) {
+//     for (entity, mut task) in &mut tasks {
+//         if block_on(future::poll_once(&mut task.0)).is_some() {
+//             // Once
+//             commands.entity(entity).despawn();
+//         }
+//     }
+// }
 
 /// Poll [TaskSink] which return `Result<T, E>`.
-pub fn poll_tasks_err<T: Send + Sync + 'static, E: Debug + Send + Sync + 'static>(
-    mut commands: Commands,
-    _asky: Asky,
-    mut tasks: Query<(Entity, &mut TaskSink<Result<T, E>>)>,
-) {
-    for (entity, mut task) in &mut tasks {
-        if let Some(result) = block_on(future::poll_once(&mut task.0)) {
-            // Once
-            if let Err(error) = result {
-                eprintln!("Got error here {:?}.", error);
-                // FIXME: I need the right entity to make this work.
-                // let _ = asky.prompt(Message::new(format!("{:?}", error)), entity);
-                commands.entity(entity).despawn();
-            } else {
-                commands.entity(entity).despawn();
-            }
-        }
-    }
-}
+// pub fn poll_tasks_err<T: Send + Sync + 'static, E: Debug + Send + Sync + 'static>(
+//     mut commands: Commands,
+//     _asky: Asky,
+//     mut tasks: Query<(Entity, &mut TaskSink<Result<T, E>>)>,
+// ) {
+//     for (entity, mut task) in &mut tasks {
+//         if let Some(result) = block_on(future::poll_once(&mut task.0)) {
+//             // Once
+//             if let Err(error) = result {
+//                 eprintln!("Got error here {:?}.", error);
+//                 // FIXME: I need the right entity to make this work.
+//                 // let _ = asky.prompt(Message::new(format!("{:?}", error)), entity);
+//                 commands.entity(entity).despawn();
+//             } else {
+//                 commands.entity(entity).despawn();
+//             }
+//         }
+//     }
+// }
 
 impl<T: Typeable<KeyEvent> + Valuable> Deref for AskyNode<T> {
     type Target = T;
@@ -701,6 +742,9 @@ impl Default for AskyStyle {
 }
 
 /// The Asky plugin for bevy
+///
+/// This will add [bevy_defer::AsyncPlugin] with default settings unless it has
+/// already been added.
 pub struct AskyPlugin;
 
 impl Plugin for AskyPlugin {
@@ -709,6 +753,10 @@ impl Plugin for AskyPlugin {
             let mut type_registry = type_registry.write();
             type_registry.register::<AskyState>();
             type_registry.register::<AskyPrompt>();
+        }
+
+        if !app.is_plugin_added::<AsyncPlugin>() {
+            app.add_plugins(AsyncPlugin::default_settings());
         }
         app
             .insert_resource(AskyParamConfig {
@@ -739,8 +787,8 @@ impl Plugin for AskyPlugin {
                                   asky_system::<Message>,
                                   asky_system::<MultiSelect<'static, &'static str>>,
                                   asky_system::<MultiSelect<'_, Cow<'static, str>>>).chain())
-            .add_systems(PostUpdate, poll_tasks::<()>)
-            .add_systems(PostUpdate, poll_tasks_err::<(), Error>)
+            // .add_systems(PostUpdate, poll_tasks::<()>)
+            // .add_systems(PostUpdate, poll_tasks_err::<(), Error>)
             .add_systems(PostUpdate, check_prompt_state)
             .add_systems(PostUpdate, run_closures)
             .add_systems(PostUpdate, run_timers);

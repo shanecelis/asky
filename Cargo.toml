@@ -24,13 +24,14 @@ promise_out = "1.0.0"
 # text-style = { path = "../text-style-rs", default-features = false }
 text-style = { git = "https://github.com/shanecelis/text_style.git", branch = "feature/colored", optional = true, features = [ "crossterm", "bevy" ] }
 thiserror = "1.0.58"
+bevy_defer = { version = "0.9.1", optional = true }
 # text-style = { git = "https://github.com/shanecelis/text_style.git", branch="feature/colored", default-features = false }
 
 [features]
 default = ["terminal"]
 terminal = ["dep:crossterm", "text-style/crossterm" ] #, "colored/tty", "colored/color"]
 # terminal = ["dep:crossterm"] #, "colored/tty", "colored/color"]
-bevy = ["dep:bevy", "text-style/colored", "text-style/bevy"]
+bevy = ["dep:bevy", "dep:bevy_defer", "text-style/colored", "text-style/bevy"]
 
 
 [[example]]
