@@ -17,8 +17,6 @@ use promise_out::{
     Promise,
 };
 use std::borrow::Cow;
-use std::sync::{Arc, Mutex};
-// use std::rc::Rc;
 
 use bevy::prelude::*;
 use std::future::Future;
@@ -33,7 +31,7 @@ use crate::{Confirm, Error, Message, MultiSelect, Number, Password, Select, Togg
 use bevy::window::RequestRedraw;
 use itertools::Itertools;
 use text_style::{bevy::TextStyleParams, AnsiColor, StyledString};
-use bevy_defer::{AsyncExecutor, AsyncPlugin, world, AsyncAccess};
+use bevy_defer::{AsyncExecutor, AsyncPlugin, world};
 
 /// The Asky prompt
 ///
@@ -107,25 +105,7 @@ fn run_timers(mut commands: Commands, mut query: Query<(Entity, &mut AskyDelay)>
 ///
 /// This is a bevy [SystemParam] so any system can access it.
 #[derive(Clone, SystemParam)]
-pub struct Asky {
-    // config: AskyParamConfig,
-    // executor: AsyncExecutor,
-}
-
-/// Asky's global state.
-#[derive(Resource, Clone)]
-pub struct AskyParamConfig {
-    pub(crate) state: Arc<Mutex<AskyParamState>>,
-}
-
-/// The closure type for asky
-pub type Closure = dyn FnOnce(&mut Commands, Option<Entity>, Option<&Children>)
-                              -> Result<(), Error> + 'static + Send + Sync;
-
-/// Consider making a typedef.
-pub struct AskyParamState {
-    pub(crate) closures: Vec<(Box<Closure>, Option<Entity>)>,
-}
+pub struct Asky;
 
 impl Asky {
     /// Create a new Asky.
@@ -686,11 +666,6 @@ impl Plugin for AskyPlugin {
             app.add_plugins(AsyncPlugin::default_settings());
         }
         app
-            .insert_resource(AskyParamConfig {
-                state: Arc::new(Mutex::new(AskyParamState {
-                    closures: Vec::new(),
-                })),
-            })
             .init_state::<AskyPrompt>()
 
             .add_systems(Update, (asky_system::<Number<u8>>,
@@ -788,17 +763,16 @@ impl<T: NumLike> Typeable<KeyEvent> for Number<'_, T> {
         }
 
         for code in &key.codes {
-            if match code {
+            if matches!(code,
                 // submit
-                KeyCode::Enter => true,
+                KeyCode::Enter     |
                 // remove delete
-                KeyCode::Backspace => true,
-                KeyCode::Delete => true,
+                KeyCode::Backspace |
+                KeyCode::Delete    |
                 // move cursor
-                KeyCode::ArrowLeft => true,
-                KeyCode::ArrowRight => true,
-                _ => false,
-            } {
+                KeyCode::ArrowLeft |
+                KeyCode::ArrowRight)
+            {
                 return true;
             }
         }

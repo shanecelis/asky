@@ -114,7 +114,7 @@ fn ask_question(
                 }
                 Err(_) => "Uh oh, had a problem.",
             };
-            let _ = asky.prompt(Message::new(msg), id);
+            let _ = asky.prompt(Message::new(msg), id).await;
         })
     } else {
         None

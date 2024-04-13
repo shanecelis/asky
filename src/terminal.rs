@@ -107,7 +107,7 @@ impl Renderer for TermRenderer {
     }
 
     fn post_prompt(&mut self) -> io::Result<()> {
-        let newline_count = *self.newline_count();
+        // let newline_count = *self.newline_count();
 
         // Saved position is updated each draw because the text lines could be different
         // between draws. The last draw is ignored to always set the cursor at the end
@@ -124,17 +124,17 @@ impl Renderer for TermRenderer {
                 // cursor::MoveTo(col, row)
             )?;
 
-            if newline_count > 0 {
-                // queue!(
-                //     self.out,
-                //     cursor::MoveToPreviousLine(newline_count)
-                // )?;
-            } else {
-                // queue!(
-                //     self.out,
-                //     // cursor::MoveToColumn(0)
-                // )?;
-            }
+            // if newline_count > 0 {
+            //     // queue!(
+            //     //     self.out,
+            //     //     cursor::MoveToPreviousLine(newline_count)
+            //     // )?;
+            // } else {
+            //     // queue!(
+            //     //     self.out,
+            //     //     // cursor::MoveToColumn(0)
+            //     // )?;
+            // }
         }
 
         self.out.flush()
