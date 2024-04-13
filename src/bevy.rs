@@ -102,9 +102,9 @@ fn run_timers(mut commands: Commands, mut query: Query<(Entity, &mut AskyDelay)>
 /// The gateway to asky functionality in bevy.
 ///
 /// This is a bevy [SystemParam] so any system can access it.
-#[derive(Clone)]
+#[derive(Clone, SystemParam)]
 pub struct Asky {
-    config: AskyParamConfig,
+    // config: AskyParamConfig,
     // executor: AsyncExecutor,
 }
 
@@ -130,26 +130,26 @@ impl Asky {
     // }
 
     /// Run a closure soon.
-    pub fn run<C>(&mut self,
-               // closure: impl Closure,
-               closure: C,
-               entity: Option<Entity>) where
-    C: FnOnce(&mut Commands, Option<Entity>, Option<&Children>)
-                                    -> Result<(), Error> + 'static + Send + Sync {
-        // use bevy::ecs::system::RunSystemOnce;
-        // let world = world();
-        // world.run(move |world|
-        //           {
-        //           world.run_system_once_with((entity, closure), |In((entity, closure)): In<(Option<Entity>, C)>,
-        //                                      mut commands: Commands, query: Query<Option<&Children>>| -> T {
-        //               let children = entity.and_then(|id| query.get(id).expect("Unable to get children"));
-        //               let result = closure(&mut commands, entity, children);
-        //                                          result.unwrap()
+    // pub fn run<C>(&mut self,
+    //            // closure: impl Closure,
+    //            closure: C,
+    //            entity: Option<Entity>) where
+    // C: FnOnce(&mut Commands, Option<Entity>, Option<&Children>)
+    //                                 -> Result<(), Error> + 'static + Send + Sync {
+    //     // use bevy::ecs::system::RunSystemOnce;
+    //     // let world = world();
+    //     // world.run(move |world|
+    //     //           {
+    //     //           world.run_system_once_with((entity, closure), |In((entity, closure)): In<(Option<Entity>, C)>,
+    //     //                                      mut commands: Commands, query: Query<Option<&Children>>| -> T {
+    //     //               let children = entity.and_then(|id| query.get(id).expect("Unable to get children"));
+    //     //               let result = closure(&mut commands, entity, children);
+    //     //                                          result.unwrap()
 
-        //           })
-        //           })
-        self.config.state.lock().unwrap().closures.push((Box::new(closure), entity));
-    }
+    //     //           })
+    //     //           })
+    //     // self.config.state.lock().unwrap().closures.push((Box::new(closure), entity));
+    // }
 
     /// Prompt the user with `T`, rendering in element `dest`.
     pub fn prompt<T: Typeable<KeyEvent> + Valuable + Send + Sync + 'static>(
@@ -157,29 +157,24 @@ impl Asky {
         prompt: T,
         dest: Entity,
     ) -> impl Future<Output = Result<T::Output, Error>> {
-        let (promise, waiter) = Producer::<T::Output, Error>::new();
-        self.run(
-            move |commands: &mut Commands,
-            entity: Option<Entity>,
-            _children: Option<&Children>| {
-                entity.map(|parent| {
-                    let node = NodeBundle {
-                        style: Style {
-                            flex_direction: FlexDirection::Column,
-                            ..default()
-                        },
-                        ..default()
-                    };
-                    let id = commands
-                        .spawn((node, AskyNode { prompt, promise: Some(promise) },  AskyState::Waiting))
-                        .id();
-                    commands.entity(parent).push_children(&[id]);
-                }).ok_or(Error::Message("No entity for prompt".into()))
-                // waiter.await
-            },
-            Some(dest),
-        );
-        waiter
+        async {
+            let (promise, waiter) = Producer::<T::Output, Error>::new();
+            let world = world();
+            let node = NodeBundle {
+                style: Style {
+                    flex_direction: FlexDirection::Column,
+                    ..default()
+                },
+                ..default()
+            };
+            let id = world
+                .spawn_bundle((node,
+                               AskyNode { prompt, promise: Some(promise) },
+                               AskyState::Waiting))
+                .await
+                .id();
+            waiter.await
+        }
     }
 
     /// Prompt the user with `T`, rendering in element `dest` with a given style.
@@ -188,88 +183,38 @@ impl Asky {
         prompt: T,
         dest: Entity,
         style: AskyStyle
-    ) -> Consumer<T::Output, Error> {
-        let (promise, waiter) = Producer::<T::Output, Error>::new();
-        self.config.state.lock().unwrap().closures.push((
-            Box::new(
-                move |commands: &mut Commands,
-                      entity: Option<Entity>,
-                      _children: Option<&Children>| {
-                    entity.map(|parent| {
-                    let node = NodeBundle {
-                        style: Style {
-                            flex_direction: FlexDirection::Column,
-                            ..default()
-                        },
-                        ..default()
-                    };
-                    let id = commands
-                              .spawn((node,
-                                      AskyNode { prompt, promise: Some(promise) },
-                                      AskyState::Waiting,
-                                      style))
-                              .id();
-                    commands.entity(parent).push_children(&[id]);
-                    }).ok_or(Error::Message("No entity for prompt_styled".into()))
+    ) -> impl Future<Output = Result<T::Output, Error>> {
+        async {
+            let (promise, waiter) = Producer::<T::Output, Error>::new();
+            let world = world();
+            let node = NodeBundle {
+                style: Style {
+                    flex_direction: FlexDirection::Column,
+                    ..default()
                 },
-            ),
-            Some(dest),
-        ));
-        waiter
+                ..default()
+            };
+            let id = world
+                .spawn_bundle((node,
+                               AskyNode { prompt, promise: Some(promise) },
+                               AskyState::Waiting,
+                               style))
+                .await
+                .id();
+            waiter.await
+        }
     }
 
     /// Clear all entities in `dest`.
-    pub fn clear(&mut self, dest: Entity) -> impl Future<Output = Result<(), Error>> {
-        async move {
-            let world = world();
-            // let children = world.query::<Option<&Children>>().get(dest);
-            // world.entity(dest).clear_children().await?;
-            // for child in children.iter() {
-            world.entity(dest).despawn_descendants().await;
-            Ok(())
-            // }
-        }
-        // let (promise, waiter) = Producer::<(), Error>::new();
-        // self.config.state.lock().unwrap().closures.push((
-        //     Box::new(
-        //         move |commands: &mut Commands,
-        //               entity: Option<Entity>,
-        //               children_maybe: Option<&Children>| {
-        //                   entity.map(|parent| {
-
-        //             commands.entity(parent).clear_children();
-        //             if let Some(children) = children_maybe {
-        //                 for child in children.iter() {
-        //                     commands.entity(*child).despawn_recursive();
-        //                 }
-        //             }
-        //             promise.resolve(());
-        //                   }).ok_or(Error::Message("No entity for clear".into()))
-        //         },
-        //     ),
-        //     Some(dest),
-        // ));
-        // waiter
+    pub fn clear(&mut self, dest: Entity) -> impl Future<Output = ()> {
+        let world = world();
+        world.entity(dest).despawn_descendants()
     }
 
     /// Delay for the duration.
-    pub fn delay(&mut self, duration: Duration) -> Consumer<(), Error> {
-        let (promise, waiter) = Producer::<(), Error>::new();
-        self.config.state.lock().unwrap().closures.push((
-            Box::new(
-                move |commands: &mut Commands,
-                      _entity: Option<Entity>,
-                      _children_maybe: Option<&Children>| {
-                    commands.spawn(AskyDelay(
-                        Timer::new(duration, TimerMode::Once),
-                        Some(promise),
-                    ));
-                    Ok(())
-                },
-            ),
-            None,
-        ));
-        waiter
+    pub fn delay(&mut self, duration: Duration) -> impl Future<Output = ()> {
+        let world = world();
+        world.sleep(duration)
     }
 }
 
@@ -316,35 +261,35 @@ fn check_prompt_state(
     }
 }
 
-unsafe impl SystemParam for Asky {
-    type State = AskyParamConfig;
-    type Item<'w, 's> = Asky;
+// unsafe impl SystemParam for Asky {
+//     type State = AskyParamConfig;
+//     type Item<'w, 's> = Asky;
 
-    fn init_state(world: &mut World, _system_meta: &mut SystemMeta) -> Self::State {
-        world
-            .get_resource_mut::<AskyParamConfig>()
-            .expect("No AskyParamConfig setup.")
-            .clone()
-    }
+//     fn init_state(world: &mut World, _system_meta: &mut SystemMeta) -> Self::State {
+//         world
+//             .get_resource_mut::<AskyParamConfig>()
+//             .expect("No AskyParamConfig setup.")
+//             .clone()
+//     }
 
-    #[inline]
-    unsafe fn get_param<'w, 's>(
-        state: &'s mut Self::State,
-        _system_meta: &SystemMeta,
-        _world: UnsafeWorldCell<'w>,
-        _change_tick: component::Tick,
-    ) -> Self::Item<'w, 's> {
-        // let exe = world
-        //     .get_non_send_resource_mut::<AsyncExecutor>()
-        //     .expect("No AskyParamConfig setup.")
-        //     .clone();
-        Asky {
-            config: state.clone(),
-            // executor: exe
-        }
-        // Asky::new(state.clone())
-    }
-}
+//     #[inline]
+//     unsafe fn get_param<'w, 's>(
+//         state: &'s mut Self::State,
+//         _system_meta: &SystemMeta,
+//         _world: UnsafeWorldCell<'w>,
+//         _change_tick: component::Tick,
+//     ) -> Self::Item<'w, 's> {
+//         // let exe = world
+//         //     .get_non_send_resource_mut::<AsyncExecutor>()
+//         //     .expect("No AskyParamConfig setup.")
+//         //     .clone();
+//         Asky {
+//             // config: state.clone(),
+//             // executor: exe
+//         }
+//         // Asky::new(state.clone())
+//     }
+// }
 
 /// An asky task.
 ///
