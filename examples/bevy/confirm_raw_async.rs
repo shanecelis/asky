@@ -61,7 +61,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(node.clone()).with_children(|parent| {
         parent
             .spawn(node)
-            .insert(AskyNode(confirm, AskyState::Waiting(promise)));
+            .insert((AskyNode::new(confirm).with(promise), AskyState::Waiting));
     });
     let thread_pool = AsyncComputeTaskPool::get();
     let task = thread_pool.spawn(async move {

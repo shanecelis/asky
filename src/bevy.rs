@@ -52,6 +52,12 @@ impl<T: Typeable<KeyEvent> + Valuable> AskyNode<T> {
             promise: None
         }
     }
+
+    /// Provide a promise with the node.
+    pub fn with(mut self, promise: Producer<T::Output, Error>) -> Self {
+        self.promise = Some(promise);
+        self
+    }
 }
 
 /// A delay

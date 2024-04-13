@@ -55,12 +55,12 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 
 fn response(
     mut commands: Commands,
-    mut query: Query<(Entity, &AskyNode<Confirm<'static>>), Without<Handled>>,
+    mut query: Query<(Entity, &AskyNode<Confirm<'static>>, &AskyState), Without<Handled>>,
 ) {
-    for (entity, node) in query.iter_mut() {
-        match prompt.1 {
+    for (entity, node, state) in query.iter_mut() {
+        match state {
             AskyState::Complete => {
-                let response = match prompt.0.value() {
+                let response = match node.value() {
                     Ok(yes) => {
                         if yes {
                             "Great, me too."
@@ -73,7 +73,7 @@ fn response(
 
                 let child = commands
                     .spawn(NodeBundle { ..default() })
-                    .insert(AskyNode(Message::new(response), AskyState::Reading))
+                    .insert((AskyNode::new(Message::new(response)), AskyState::Waiting))
                     .id();
                 commands
                     .entity(entity)
