@@ -26,7 +26,7 @@ impl StyledStringWriter {
     }
 
     fn get_cursor_pos(&mut self) -> CursorPos {
-        if self.strings.len() == 0 {
+        if self.strings.is_empty() {
             self.strings.push(StyledString::new(String::new(), self.style));
         }
         match &self.cursor_pos {

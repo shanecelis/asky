@@ -7,15 +7,13 @@ use crate::{DrawTime, NumLike};
 use crate::style::{self, DefaultStyle};
 use bevy::{
     ecs::{
-        component,
-        system::{SystemMeta, SystemParam},
-        world::unsafe_world_cell::UnsafeWorldCell,
+        system::{SystemParam},
     },
     input::keyboard::KeyboardInput,
     utils::Duration,
 };
 use promise_out::{
-    pair::{Consumer, Producer},
+    pair::{Producer},
     Promise,
 };
 use std::borrow::Cow;
@@ -25,17 +23,17 @@ use std::sync::{Arc, Mutex};
 use bevy::prelude::*;
 use std::future::Future;
 use std::fmt::Debug;
-use futures_lite::future;
+
 
 use std::ops::{Deref, DerefMut};
 
 use crate::text_style_adapter::StyledStringWriter;
 use crate::{Confirm, Error, Message, MultiSelect, Number, Password, Select, Toggle, Valuable};
-use bevy::tasks::{block_on, AsyncComputeTaskPool, Task};
+
 use bevy::window::RequestRedraw;
 use itertools::Itertools;
 use text_style::{bevy::TextStyleParams, AnsiColor, StyledString};
-use bevy_defer::{AsyncCommandsExtension, AsyncExecutor, AsyncPlugin, world, AsyncAccess, access::AsyncQuery};
+use bevy_defer::{AsyncExecutor, AsyncPlugin, world, AsyncAccess};
 
 /// The Asky prompt
 ///
@@ -231,7 +229,7 @@ fn check_prompt_state(
     mut redraw: EventWriter<RequestRedraw>,
 ) {
     let was_active = matches!(**asky_prompt, AskyPrompt::Active);
-    let is_active = query.iter().filter(|x| matches!(*x, AskyState::Waiting)).next().is_some()
+    let is_active = query.iter().any(|x| matches!(x, AskyState::Waiting))
         || delays.iter().next().is_some();
     if was_active ^ is_active {
         next_asky_prompt.set(if is_active { AskyPrompt::Active } else { AskyPrompt::Inactive });
