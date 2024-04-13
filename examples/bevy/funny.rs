@@ -33,13 +33,13 @@ fn main() {
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let settings = AskyStyle {
-        style: TextStyle {
+    let settings = AskyStyle::default().with_text_style(
+        TextStyle {
             font: asset_server.load("fonts/DejaVuSansMono.ttf"),
             font_size: 25.0,
             color: Color::WHITE,
-        },
-    };
+        }
+    );
     commands.insert_resource(settings);
     commands.spawn(Camera2dBundle::default());
 }

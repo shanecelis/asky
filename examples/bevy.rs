@@ -53,7 +53,8 @@ fn main() {
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>, kind: &str) {
-    let settings = AskyStyle::default().with_text_style(TextStyle {
+    let settings = AskyStyle::default()
+        .with_text_style(TextStyle {
             font: asset_server.load("fonts/DejaVuSansMono.ttf"),
             font_size: 50.0,
             color: Color::WHITE,
