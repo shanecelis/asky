@@ -177,6 +177,10 @@ pub enum Error {
     /// There was an [std::io::Error].
     #[error("io error {0}")]
     Io(#[from] std::io::Error),
+    #[cfg(feature = "bevy")]
+    /// Async error
+    #[error("async error {0}")]
+    Async(#[from] bevy_defer::AsyncFailure),
 }
 
 /// A prompt

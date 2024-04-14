@@ -122,7 +122,7 @@ impl Asky {
                 .await
                 .id();
 
-            world.entity(dest).add_child(id).await;
+            world.entity(dest).add_child(id).await?;
             waiter.await
         }
     }
@@ -151,7 +151,7 @@ impl Asky {
                                style))
                 .await
                 .id();
-            world.entity(dest).add_child(id).await;
+            world.entity(dest).add_child(id).await?;
             waiter.await
         }
     }
