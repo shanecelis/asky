@@ -76,16 +76,6 @@ pub enum AskyState {
     Hidden,
 }
 
-/// The global State of the asky prompt.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, States, Reflect)]
-pub enum AskyPrompt {
-    /// No propmt is active.
-    #[default]
-    Inactive,
-    /// A prompt is active.
-    Active,
-}
-
 fn run_timers(mut commands: Commands, mut query: Query<(Entity, &mut AskyDelay)>, time: Res<Time>,
     mut redraw: EventWriter<RequestRedraw>,
 ) {
@@ -179,23 +169,6 @@ impl Asky {
     }
 }
 
-
-/// Check components to determine whether a AskyPrompt state needs to change.
-fn check_prompt_state(
-    query: Query<&AskyState>,
-    delays: Query<&AskyDelay>,
-    asky_prompt: Res<State<AskyPrompt>>,
-    mut next_asky_prompt: ResMut<NextState<AskyPrompt>>,
-    mut redraw: EventWriter<RequestRedraw>,
-) {
-    let was_active = matches!(**asky_prompt, AskyPrompt::Active);
-    let is_active = query.iter().any(|x| matches!(x, AskyState::Waiting))
-        || delays.iter().next().is_some();
-    if was_active ^ is_active {
-        next_asky_prompt.set(if is_active { AskyPrompt::Active } else { AskyPrompt::Inactive });
-        redraw.send(RequestRedraw);
-    }
-}
 
 /// Given a future, create a [TaskSink] for it.
 pub fn future_sink<T: 'static, F: Future<Output = T> + 'static>(
@@ -539,15 +512,12 @@ impl Plugin for AskyPlugin {
         if let Some(type_registry) = app.world.get_resource_mut::<AppTypeRegistry>() {
             let mut type_registry = type_registry.write();
             type_registry.register::<AskyState>();
-            type_registry.register::<AskyPrompt>();
         }
 
         if !app.is_plugin_added::<AsyncPlugin>() {
             app.add_plugins(AsyncPlugin::default_settings());
         }
         app
-            .init_state::<AskyPrompt>()
-
             .add_systems(Update, (asky_system::<Number<u8>>,
                                   asky_system::<Number<u16>>,
                                   asky_system::<Number<u32>>,
@@ -569,8 +539,6 @@ impl Plugin for AskyPlugin {
                                   asky_system::<Message>,
                                   asky_system::<MultiSelect<'static, &'static str>>,
                                   asky_system::<MultiSelect<'_, Cow<'static, str>>>).chain())
-            .add_systems(PostUpdate, check_prompt_state)
-            // .add_systems(PostUpdate, run_closures)
             .add_systems(PostUpdate, run_timers);
     }
 }
