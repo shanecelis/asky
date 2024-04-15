@@ -170,16 +170,16 @@ impl Asky {
 }
 
 
-/// Given a future, create a [TaskSink] for it.
-pub fn future_sink<T: 'static, F: Future<Output = T> + 'static>(
+/// Given a future, run it.
+pub fn future_sink<F: Future<Output = ()> + 'static>(
     In(future): In<F>,
     exec: NonSend<AsyncExecutor>,
 ) {
     exec.spawn(future);
 }
 
-/// Given an optional future, only create a task sink if necessary.
-pub fn option_future_sink<T: 'static, F: Future<Output = T> + 'static>(
+/// Given an optional future, run it if not `None`.
+pub fn option_future_sink<F: Future<Output = ()> + 'static>(
     In(future_maybe): In<Option<F>>,
     exec: NonSend<AsyncExecutor>,
 ) {
