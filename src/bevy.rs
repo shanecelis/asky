@@ -9,7 +9,7 @@ use bevy::{
     ecs::{
         system::{SystemParam},
     },
-    input::keyboard::KeyboardInput,
+    input::keyboard::{Key, KeyboardInput},
     utils::Duration,
 };
 use promise_out::{
@@ -31,7 +31,7 @@ use crate::{Confirm, Error, Message, MultiSelect, Number, Password, Select, Togg
 use bevy::window::RequestRedraw;
 use itertools::Itertools;
 use text_style::{bevy::TextStyleParams, AnsiColor, StyledString};
-use bevy_defer::{AsyncExecutor, AsyncPlugin, world};
+use bevy_defer::{AsyncExecutor, AsyncPlugin, AsyncWorld};
 
 /// The Asky prompt
 ///
@@ -107,7 +107,7 @@ impl Asky {
     ) -> impl Future<Output = Result<T::Output, Error>> {
         async move {
             let (promise, waiter) = Producer::<T::Output, Error>::new();
-            let world = world();
+            let world = AsyncWorld::new();
             let node = NodeBundle {
                 style: Style {
                     flex_direction: FlexDirection::Column,
@@ -119,10 +119,9 @@ impl Asky {
                 .spawn_bundle((node,
                                AskyNode { prompt, promise: Some(promise) },
                                AskyState::Waiting))
-                .await
                 .id();
 
-            world.entity(dest).add_child(id).await?;
+            world.entity(dest).add_child(id)?;
             waiter.await
         }
     }
@@ -136,7 +135,7 @@ impl Asky {
     ) -> impl Future<Output = Result<T::Output, Error>> {
         async move {
             let (promise, waiter) = Producer::<T::Output, Error>::new();
-            let world = world();
+            let world = AsyncWorld::new();
             let node = NodeBundle {
                 style: Style {
                     flex_direction: FlexDirection::Column,
@@ -149,22 +148,21 @@ impl Asky {
                                AskyNode { prompt, promise: Some(promise) },
                                AskyState::Waiting,
                                style))
-                .await
                 .id();
-            world.entity(dest).add_child(id).await?;
+            world.entity(dest).add_child(id)?;
             waiter.await
         }
     }
 
     /// Clear all entities in `dest`.
-    pub fn clear(&mut self, dest: Entity) -> impl Future<Output = ()> {
-        let world = world();
+    pub fn clear(&mut self, dest: Entity) {
+        let world = AsyncWorld::new();
         world.entity(dest).despawn_descendants()
     }
 
     /// Delay for the duration.
     pub fn delay(&mut self, duration: Duration) -> impl Future<Output = ()> {
-        let world = world();
+        let world = AsyncWorld::new();
         world.sleep(duration)
     }
 }
@@ -201,6 +199,7 @@ impl<T: Typeable<KeyEvent> + Valuable> DerefMut for AskyNode<T> {
     }
 }
 
+#[derive(Debug)]
 /// Represent the key events by their chars and their key codes.
 pub struct KeyEvent {
     /// Characters from event
@@ -238,29 +237,70 @@ impl<T: Typeable<KeyCode>> Typeable<KeyEvent> for T {
 impl KeyEvent {
     /// Create a [KeyEvent] from event readers.
     pub fn new(
-        mut char_evr: EventReader<ReceivedCharacter>,
+        // mut char_evr: EventReader<ReceivedCharacter>,
         mut key_evr: EventReader<KeyboardInput>,
     ) -> Self {
-        Self {
-            chars: char_evr.read().flat_map(|e| e.char.chars()).collect(),
+        dbg!(Self {
+            chars: key_evr.read().filter_map(|k| if k.state == bevy::input::ButtonState::Pressed {
+                if let Key::Character(ref s) = k.logical_key {
+                    Some(s)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }).flat_map(|s| s.chars()).collect(),
             codes: key_evr
                 .read()
                 .filter_map(|e| {
-                    if e.state == bevy::input::ButtonState::Pressed {
-                        Some(e.key_code)
-                    } else {
-                        None
-                    }
+                    (e.state == bevy::input::ButtonState::Pressed).then_some(e.key_code)
                 })
                 .collect(),
-        }
+        })
+    }
+
+    /// Create a [KeyEvent] if there are any keyboard events.
+    pub fn try_read(mut key_evr: EventReader<KeyboardInput>) -> Option<Self> {
+        (!key_evr.is_empty())
+            .then(||
+                  {
+                      let (keys, codes): (Vec<&Key>, Vec<KeyCode>) = key_evr
+                          .read()
+                          .filter_map(|k| (k.state == bevy::input::ButtonState::Pressed)
+                                      .then_some((&k.logical_key, k.key_code)))
+                          .unzip();
+                      let chars: Vec<char> = keys.into_iter().filter_map(|l|
+                        if let Key::Character(ref s) = l {
+                            Some(s)
+                        } else {
+                            None
+                        }
+                                                  ).flat_map(|c| c.chars()).collect();
+                      Self { chars, codes }
+            // chars:
+            //     if let Key::Character(ref s) = k.logical_key {
+            //         Some(s)
+            //     } else {
+            //         None
+            //     }
+            // } else {
+            //     None
+            // }).flat_map(|s| s.chars()).collect(),
+            // codes: key_evr
+            //     .read()
+            //     .filter_map(|e| {
+            //         (e.state == bevy::input::ButtonState::Pressed).then_some(e.key_code)
+            //     })
+            //     .collect(),
+        })
+
     }
 }
 
 /// The principle system, handles a particular type of asky prompt.
 pub fn asky_system<T>(
     mut commands: Commands,
-    char_evr: EventReader<ReceivedCharacter>,
+    // char_evr: EventReader<ReceivedCharacter>,
     key_evr: EventReader<KeyboardInput>,
     global_asky_style: Option<Res<AskyStyle>>,
     mut renderer: Local<StyledStringWriter>,
@@ -268,7 +308,7 @@ pub fn asky_system<T>(
 ) where
     T: Printable + Typeable<KeyEvent> + Valuable + Tick + Send + Sync + 'static,
 {
-    let key_event = KeyEvent::new(char_evr, key_evr);
+    let key_event = KeyEvent::try_read(key_evr);
     for (entity, mut node, mut state, children, style_maybe) in query.iter_mut() {
         match *state {
             AskyState::Complete => {
@@ -284,8 +324,10 @@ pub fn asky_system<T>(
             }
             AskyState::Waiting => {
                 let on_tick = node.tick();
-                if !is_abort_key(&key_event)
-                    && !node.will_handle_key(&key_event)
+                let is_abort = key_event.as_ref().map(|k| is_abort_key(k)).unwrap_or(false);
+                let will_handle_key = key_event.as_ref().map(|k| node.will_handle_key(k)).unwrap_or(false);
+                if !is_abort
+                    && !will_handle_key
                     && renderer.state.draw_time != DrawTime::First
                     && matches!(on_tick, OnTick::Continue)
                 {
@@ -294,7 +336,7 @@ pub fn asky_system<T>(
                 // Make sure we always render it once before dealing with aborting.
                 if renderer.state.draw_time != DrawTime::First {
                     // For the terminal it had an abort key handling happen here.
-                    if is_abort_key(&key_event) || matches!(on_tick, OnTick::Abort) {
+                    if is_abort || matches!(on_tick, OnTick::Abort) {
                         *state = AskyState::Complete;
 
                         let waiting_maybe = node.promise.take();//std::mem::replace(&mut state, AskyState::Complete);
@@ -302,18 +344,21 @@ pub fn asky_system<T>(
                             promise.reject(Error::Cancel);
                         }
                         renderer.state.draw_time = DrawTime::Last;
-                    } else if node.handle_key(&key_event) || matches!(on_tick, OnTick::Finish) {
-                        // It's done.
-                        *state = AskyState::Complete;
-                        let waiting_maybe = node.promise.take();//std::mem::replace(&mut state, AskyState::Complete);
-                        // let waiting_maybe = std::mem::replace(&mut state, AskyState::Complete);
-                        if let Some(promise) = waiting_maybe {
-                            match node.prompt.value() {
-                                Ok(v) => promise.resolve(v),
-                                Err(e) => promise.reject(e),
+                    } else {
+                        let handled = key_event.as_ref().map(|k| node.handle_key(k)).unwrap_or(false);
+                        if handled || matches!(on_tick, OnTick::Finish) {
+                            // It's done.
+                            *state = AskyState::Complete;
+                            let waiting_maybe = node.promise.take();//std::mem::replace(&mut state, AskyState::Complete);
+                            // let waiting_maybe = std::mem::replace(&mut state, AskyState::Complete);
+                            if let Some(promise) = waiting_maybe {
+                                match node.prompt.value() {
+                                    Ok(v) => promise.resolve(v),
+                                    Err(e) => promise.reject(e),
+                                }
                             }
+                            renderer.state.draw_time = DrawTime::Last;
                         }
-                        renderer.state.draw_time = DrawTime::Last;
                     }
                     if let Some(children) = children {
                         commands.entity(entity).remove_children(children);
@@ -471,6 +516,19 @@ fn is_abort_key(key: &KeyEvent) -> bool {
     false
 }
 
+
+// fn is_abort_key(key: &Option<KeyEvent>) -> bool {
+//     key.map(|key| {
+//         for code in &key.codes {
+//             if code == &KeyCode::Escape {
+//                 return true;
+//             }
+//         }
+//         false
+//     }).unwrap_or(false)
+// }
+
+
 /// Defines the style locally as a component or globally as a resource.
 #[derive(Component, Resource)]
 pub struct AskyStyle {
@@ -509,7 +567,7 @@ pub struct AskyPlugin;
 
 impl Plugin for AskyPlugin {
     fn build(&self, app: &mut App) {
-        if let Some(type_registry) = app.world.get_resource_mut::<AppTypeRegistry>() {
+        if let Some(type_registry) = app.world_mut().get_resource_mut::<AppTypeRegistry>() {
             let mut type_registry = type_registry.write();
             type_registry.register::<AskyState>();
         }

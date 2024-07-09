@@ -180,7 +180,7 @@ pub enum Error {
     #[cfg(feature = "bevy")]
     /// Async error
     #[error("async error {0}")]
-    Async(#[from] bevy_defer::AsyncFailure),
+    Async(#[from] bevy_defer::AccessError),
 }
 
 /// A prompt
